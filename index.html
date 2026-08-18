@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Switchboard — Email &amp; Phone Cleaner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --bg:#11161B; --panel:#171E25; --panel2:#1C242D; --line:#2A3540;
+  --ink:#E9EDEF; --muted:#8C9AA6; --faint:#5C6B77;
+  --verd:#56A88C; --verd-dim:#2C4A40; --copper:#C08552;
+  --warn:#D8A24A; --bad:#DE6E5E;
+  --mono:'IBM Plex Mono',monospace; --sans:'IBM Plex Sans',sans-serif; --disp:'IBM Plex Sans Condensed',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.55;min-height:100vh}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+.wrap{max-width:1180px;margin:0 auto;padding:0 22px 90px}
+
+/* ---------- header ---------- */
+header{display:flex;align-items:baseline;justify-content:space-between;gap:16px;padding:26px 0 0;flex-wrap:wrap}
+.wordmark{font-family:var(--disp);font-weight:700;font-size:26px;letter-spacing:.04em;text-transform:uppercase}
+.wordmark .jack{color:var(--verd)}
+.tagline{font-family:var(--mono);font-size:12px;color:var(--muted);letter-spacing:.02em}
+
+.hero{padding:44px 0 34px;border-bottom:1px solid var(--line)}
+.hero h1{font-family:var(--disp);font-weight:700;font-size:clamp(34px,5.4vw,58px);line-height:1.04;text-transform:uppercase;letter-spacing:.01em;max-width:820px}
+.hero h1 em{font-style:normal;color:var(--verd)}
+.hero p{margin-top:16px;max-width:640px;color:var(--muted)}
+
+/* ---------- patch-strip pipeline ---------- */
+.strip{display:grid;grid-template-columns:repeat(5,1fr);gap:0;border:1px solid var(--line);border-radius:10px;overflow:hidden;margin:34px 0 40px;background:var(--panel)}
+.stage{padding:16px 14px 14px;border-right:1px solid var(--line);position:relative}
+.stage:last-child{border-right:0}
+.stage .jackhole{width:14px;height:14px;border-radius:50%;border:2px solid var(--faint);margin-bottom:10px;transition:all .35s}
+.stage.lit .jackhole{border-color:var(--verd);background:var(--verd);box-shadow:0 0 10px rgba(86,168,140,.55)}
+.stage .sname{font-family:var(--mono);font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.stage.lit .sname{color:var(--ink)}
+.stage .scount{font-family:var(--disp);font-weight:700;font-size:24px;margin-top:2px;color:var(--faint)}
+.stage.lit .scount{color:var(--verd)}
+.stage .sdesc{font-size:12px;color:var(--faint);margin-top:2px}
+@media(max-width:760px){.strip{grid-template-columns:1fr 1fr}.stage{border-bottom:1px solid var(--line)}}
+
+/* ---------- panels ---------- */
+.grid2{display:grid;grid-template-columns:1.4fr 1fr;gap:18px;margin-bottom:18px}
+@media(max-width:860px){.grid2{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px}
+.panel h2{font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--copper);margin-bottom:14px}
+
+.drop{border:1.5px dashed var(--line);border-radius:8px;padding:34px 20px;text-align:center;cursor:pointer;transition:border-color .2s, background .2s}
+.drop:hover,.drop.over{border-color:var(--verd);background:var(--panel2)}
+.drop .big{font-family:var(--disp);font-weight:600;font-size:19px}
+.drop .sub{font-family:var(--mono);font-size:12px;color:var(--muted);margin-top:6px}
+.drop input{display:none}
+.or{font-family:var(--mono);font-size:11px;color:var(--faint);text-align:center;margin:12px 0;letter-spacing:.15em}
+textarea{width:100%;min-height:96px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--ink);font-family:var(--mono);font-size:12.5px;padding:12px;resize:vertical}
+textarea:focus{outline:2px solid var(--verd);outline-offset:1px}
+
+.field{margin-bottom:14px}
+.field label{display:block;font-family:var(--mono);font-size:11.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+select{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--ink);font-family:var(--sans);font-size:14px;padding:9px 10px}
+select:focus{outline:2px solid var(--verd);outline-offset:1px}
+.check{display:flex;gap:10px;align-items:flex-start;margin-bottom:10px;cursor:pointer}
+.check input{accent-color:var(--verd);margin-top:3px;width:15px;height:15px}
+.check span{font-size:13.5px;color:var(--muted)}
+
+.btn{display:inline-block;font-family:var(--disp);font-weight:700;font-size:16px;letter-spacing:.05em;text-transform:uppercase;background:var(--verd);color:#0D1512;border:0;border-radius:8px;padding:13px 26px;cursor:pointer;transition:transform .12s, box-shadow .12s}
+.btn:hover{transform:translateY(-1px);box-shadow:0 4px 18px rgba(86,168,140,.35)}
+.btn:disabled{background:var(--verd-dim);color:var(--faint);cursor:not-allowed;transform:none;box-shadow:none}
+.btn.ghost{background:transparent;color:var(--verd);border:1px solid var(--verd)}
+.btn.small{font-size:13px;padding:9px 16px}
+.btn:focus-visible,select:focus-visible,.drop:focus-visible{outline:2px solid var(--copper);outline-offset:2px}
+
+.filetag{font-family:var(--mono);font-size:12px;color:var(--verd);margin-top:10px;word-break:break-all}
+
+/* ---------- results ---------- */
+#results{display:none}
+.statrow{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:26px 0 20px}
+@media(max-width:760px){.statrow{grid-template-columns:1fr 1fr}}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.stat .n{font-family:var(--disp);font-weight:700;font-size:30px}
+.stat .l{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.stat.good .n{color:var(--verd)} .stat.warn .n{color:var(--warn)} .stat.bad .n{color:var(--bad)}
+
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
+table{border-collapse:collapse;width:100%;min-width:860px}
+th{font-family:var(--mono);font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--copper);text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel)}
+td{font-family:var(--mono);font-size:12.5px;padding:9px 14px;border-bottom:1px solid #202932;color:var(--ink);white-space:nowrap}
+tr:last-child td{border-bottom:0}
+td.dim{color:var(--muted)}
+.chip{display:inline-block;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;border-radius:99px;padding:2px 9px;border:1px solid}
+.chip.ok{color:var(--verd);border-color:var(--verd-dim)}
+.chip.fixed{color:var(--warn);border-color:#4d3f22}
+.chip.flag{color:var(--bad);border-color:#4a2b27}
+.tfoot{font-family:var(--mono);font-size:12px;color:var(--faint);padding:12px 2px}
+.dlrow{display:flex;gap:12px;margin-top:18px;flex-wrap:wrap}
+
+/* ---------- pipeline doc ---------- */
+.doc{margin-top:56px;border-top:1px solid var(--line);padding-top:36px}
+.doc h2{font-family:var(--disp);font-weight:700;font-size:26px;text-transform:uppercase;margin-bottom:22px}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.step{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px}
+.step .k{font-family:var(--mono);font-size:11px;color:var(--verd);letter-spacing:.08em}
+.step h3{font-family:var(--disp);font-weight:600;font-size:17px;margin:6px 0 8px}
+.step p{font-size:13px;color:var(--muted)}
+footer{margin-top:60px;font-family:var(--mono);font-size:11.5px;color:var(--faint)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="wordmark">Switch<span class="jack">board</span></div>
+  <div class="tagline">contact-data cleaning · country-code routing</div>
+</header>
+
+<section class="hero">
+  <h1>Messy contacts in.<br><em>Routed, clean columns</em> out.</h1>
+  <p>Drop a file with email IDs and phone numbers in any state — country codes glued on, spaces, dashes, brackets, Excel scientific notation. Switchboard normalizes every row and returns two new columns beside the phone: <strong>country code</strong> and <strong>number only</strong>.</p>
+</section>
+
+<div class="strip" id="strip" aria-label="Processing pipeline">
+  <div class="stage" data-stage="0"><div class="jackhole"></div><div class="sname">1 · Ingest</div><div class="scount">—</div><div class="sdesc">rows read</div></div>
+  <div class="stage" data-stage="1"><div class="jackhole"></div><div class="sname">2 · Emails</div><div class="scount">—</div><div class="sdesc">valid after cleaning</div></div>
+  <div class="stage" data-stage="2"><div class="jackhole"></div><div class="sname">3 · Normalize</div><div class="scount">—</div><div class="sdesc">phones standardized</div></div>
+  <div class="stage" data-stage="3"><div class="jackhole"></div><div class="sname">4 · Route</div><div class="scount">—</div><div class="sdesc">country codes matched</div></div>
+  <div class="stage" data-stage="4"><div class="jackhole"></div><div class="sname">5 · Deliver</div><div class="scount">—</div><div class="sdesc">rows ready to export</div></div>
+</div>
+
+<div class="grid2">
+  <div class="panel">
+    <h2>Input</h2>
+    <label class="drop" id="drop" tabindex="0">
+      <div class="big">Drop your file here or click to browse</div>
+      <div class="sub">.xlsx · .xls · .csv · .tsv — first row should be headers</div>
+      <input type="file" id="file" accept=".xlsx,.xls,.csv,.tsv,.txt">
+    </label>
+    <div class="filetag" id="filetag"></div>
+    <div class="or">— OR PASTE —</div>
+    <textarea id="paste" placeholder="email,phone&#10;ravi@gmail.com, +91 98765-43210&#10;sara@yahoo.com, 0044 7911 123456"></textarea>
+  </div>
+
+  <div class="panel">
+    <h2>Settings</h2>
+    <div class="field"><label for="emailCol">Email column</label><select id="emailCol"><option>— load data first —</option></select></div>
+    <div class="field"><label for="phoneCol">Phone column</label><select id="phoneCol"><option>— load data first —</option></select></div>
+    <div class="field"><label for="defcc">Default country (numbers with no code)</label>
+      <select id="defcc">
+        <option value="91" selected>India (+91)</option><option value="1">USA / Canada (+1)</option>
+        <option value="44">United Kingdom (+44)</option><option value="971">UAE (+971)</option>
+        <option value="966">Saudi Arabia (+966)</option><option value="61">Australia (+61)</option>
+        <option value="65">Singapore (+65)</option><option value="880">Bangladesh (+880)</option>
+        <option value="977">Nepal (+977)</option><option value="94">Sri Lanka (+94)</option>
+        <option value="92">Pakistan (+92)</option><option value="234">Nigeria (+234)</option>
+        <option value="27">South Africa (+27)</option><option value="">None — flag instead</option>
+      </select>
+    </div>
+    <label class="check"><input type="checkbox" id="fixTypos" checked><span>Auto-fix common email domain typos (gamil.com → gmail.com) — fixes are flagged, never silent</span></label>
+    <label class="check"><input type="checkbox" id="dedup"><span>Remove duplicate rows (same cleaned email or phone)</span></label>
+    <button class="btn" id="run" disabled>Run the pipeline</button>
+  </div>
+</div>
+
+<section id="results" aria-live="polite">
+  <div class="statrow">
+    <div class="stat good"><div class="n" id="stTotal">0</div><div class="l">rows out</div></div>
+    <div class="stat good"><div class="n" id="stMatched">0</div><div class="l">codes matched</div></div>
+    <div class="stat warn"><div class="n" id="stFixed">0</div><div class="l">auto-repaired</div></div>
+    <div class="stat bad"><div class="n" id="stFlag">0</div><div class="l">flagged for review</div></div>
+  </div>
+  <div class="tablewrap"><table id="tbl"><thead><tr>
+    <th>Email (clean)</th><th>Phone (original)</th><th>Country code</th><th>Number only</th><th>Country</th><th>Status</th>
+  </tr></thead><tbody></tbody></table></div>
+  <div class="tfoot" id="tfoot"></div>
+  <div class="dlrow">
+    <button class="btn small" id="dlx">Download Excel (.xlsx)</button>
+    <button class="btn small ghost" id="dlc">Download CSV</button>
+  </div>
+</section>
+
+<section class="doc">
+  <h2>How the pipeline works</h2>
+  <div class="steps">
+    <div class="step"><div class="k">STAGE 1</div><h3>Ingest &amp; type repair</h3><p>Reads Excel, CSV or pasted text. Numbers that Excel mangled into scientific notation (9.19876E+11) are expanded back to full digits before anything else touches them.</p></div>
+    <div class="step"><div class="k">STAGE 2</div><h3>Email cleaning</h3><p>Trims whitespace, strips inner spaces and trailing punctuation, lowercases, then validates against a strict pattern. Optionally repairs frequent domain typos — every repair is marked, never silent.</p></div>
+    <div class="step"><div class="k">STAGE 3</div><h3>Phone normalization</h3><p>Strips spaces, dashes, dots and brackets; converts the international 00-prefix to +; drops a single trunk-zero where a country expects it. Only digits survive.</p></div>
+    <div class="step"><div class="k">STAGE 4</div><h3>Country-code routing</h3><p>Longest-prefix match against the full ITU dial-code table (240+ codes, tried 3→2→1 digits), cross-checked against each country's expected national number length. No prefix present? The default country applies only when the length fits exactly — otherwise the row is flagged, never guessed.</p></div>
+    <div class="step"><div class="k">STAGE 5</div><h3>Deliver</h3><p>Optional de-duplication, then export. In the Excel download the code and number columns are written as text so Excel can never re-mangle them.</p></div>
+  </div>
+</section>
+
+<footer>Everything runs in your browser — no row of your data leaves this page.</footer>
+</div>
+
+<script>
+/* ================= ITU dial codes (code -> country) ================= */
+const CC = {"1":"USA/Canada","7":"Russia/Kazakhstan","20":"Egypt","27":"South Africa","30":"Greece","31":"Netherlands","32":"Belgium","33":"France","34":"Spain","36":"Hungary","39":"Italy","40":"Romania","41":"Switzerland","43":"Austria","44":"United Kingdom","45":"Denmark","46":"Sweden","47":"Norway","48":"Poland","49":"Germany","51":"Peru","52":"Mexico","53":"Cuba","54":"Argentina","55":"Brazil","56":"Chile","57":"Colombia","58":"Venezuela","60":"Malaysia","61":"Australia","62":"Indonesia","63":"Philippines","64":"New Zealand","65":"Singapore","66":"Thailand","81":"Japan","82":"South Korea","84":"Vietnam","86":"China","90":"Turkey","91":"India","92":"Pakistan","93":"Afghanistan","94":"Sri Lanka","95":"Myanmar","98":"Iran","211":"South Sudan","212":"Morocco","213":"Algeria","216":"Tunisia","218":"Libya","220":"Gambia","221":"Senegal","222":"Mauritania","223":"Mali","224":"Guinea","225":"Ivory Coast","226":"Burkina Faso","227":"Niger","228":"Togo","229":"Benin","230":"Mauritius","231":"Liberia","232":"Sierra Leone","233":"Ghana","234":"Nigeria","235":"Chad","236":"Central African Rep.","237":"Cameroon","238":"Cape Verde","239":"São Tomé","240":"Eq. Guinea","241":"Gabon","242":"Congo","243":"DR Congo","244":"Angola","245":"Guinea-Bissau","248":"Seychelles","249":"Sudan","250":"Rwanda","251":"Ethiopia","252":"Somalia","253":"Djibouti","254":"Kenya","255":"Tanzania","256":"Uganda","257":"Burundi","258":"Mozambique","260":"Zambia","261":"Madagascar","262":"Réunion","263":"Zimbabwe","264":"Namibia","265":"Malawi","266":"Lesotho","267":"Botswana","268":"Eswatini","269":"Comoros","290":"St Helena","291":"Eritrea","297":"Aruba","298":"Faroe Is.","299":"Greenland","350":"Gibraltar","351":"Portugal","352":"Luxembourg","353":"Ireland","354":"Iceland","355":"Albania","356":"Malta","357":"Cyprus","358":"Finland","359":"Bulgaria","370":"Lithuania","371":"Latvia","372":"Estonia","373":"Moldova","374":"Armenia","375":"Belarus","376":"Andorra","377":"Monaco","378":"San Marino","380":"Ukraine","381":"Serbia","382":"Montenegro","383":"Kosovo","385":"Croatia","386":"Slovenia","387":"Bosnia","389":"North Macedonia","420":"Czechia","421":"Slovakia","423":"Liechtenstein","500":"Falkland Is.","501":"Belize","502":"Guatemala","503":"El Salvador","504":"Honduras","505":"Nicaragua","506":"Costa Rica","507":"Panama","508":"St Pierre","509":"Haiti","590":"Guadeloupe","591":"Bolivia","592":"Guyana","593":"Ecuador","595":"Paraguay","597":"Suriname","598":"Uruguay","599":"Curaçao","670":"Timor-Leste","672":"Norfolk Is.","673":"Brunei","674":"Nauru","675":"Papua New Guinea","676":"Tonga","677":"Solomon Is.","678":"Vanuatu","679":"Fiji","680":"Palau","681":"Wallis &amp; Futuna","682":"Cook Is.","683":"Niue","685":"Samoa","686":"Kiribati","687":"New Caledonia","688":"Tuvalu","689":"Fr. Polynesia","690":"Tokelau","691":"Micronesia","692":"Marshall Is.","850":"North Korea","852":"Hong Kong","853":"Macau","855":"Cambodia","856":"Laos","880":"Bangladesh","886":"Taiwan","960":"Maldives","961":"Lebanon","962":"Jordan","963":"Syria","964":"Iraq","965":"Kuwait","966":"Saudi Arabia","967":"Yemen","968":"Oman","970":"Palestine","971":"UAE","972":"Israel","973":"Bahrain","974":"Qatar","975":"Bhutan","976":"Mongolia","977":"Nepal","992":"Tajikistan","993":"Turkmenistan","994":"Azerbaijan","995":"Georgia","996":"Kyrgyzstan","998":"Uzbekistan"};
+/* expected national-number lengths for the big senders; [min,max] */
+const NLEN = {"91":[10,10],"1":[10,10],"7":[10,10],"44":[9,10],"971":[7,9],"966":[7,9],"61":[9,9],"65":[8,8],"880":[10,10],"977":[10,10],"94":[9,9],"92":[10,10],"234":[10,10],"27":[9,9],"86":[11,11],"81":[9,10],"49":[10,11],"33":[9,9],"60":[9,10],"62":[9,12],"63":[10,10],"852":[8,8],"974":[8,8],"965":[8,8],"968":[8,8],"973":[8,8]};
+const GEN = [6,12]; /* generic plausible national length */
+
+function lenOK(cc, n){ const r = NLEN[cc] || GEN; return n >= r[0] && n <= r[1]; }
+
+/* expand Excel scientific notation safely */
+function deSci(v){
+  if (typeof v === "number") return v.toLocaleString("fullwide",{useGrouping:false});
+  const s = String(v == null ? "" : v).trim();
+  if (/^\d+(\.\d+)?[eE]\+?\d+$/.test(s)) return Number(s).toLocaleString("fullwide",{useGrouping:false});
+  return s;
+}
+
+const TYPOS = {"gamil.com":"gmail.com","gmial.com":"gmail.com","gmal.com":"gmail.com","gmaill.com":"gmail.com","gmail.co":"gmail.com","gmail.con":"gmail.com","gmail.om":"gmail.com","gnail.com":"gmail.com","yaho.com":"yahoo.com","yahooo.com":"yahoo.com","yahoo.co":"yahoo.com","hotmial.com":"hotmail.com","hotmal.com":"hotmail.com","outlok.com":"outlook.com","outllok.com":"outlook.com","rediffmai.com":"rediffmail.com"};
+const EMAIL_RE = /^[a-z0-9](\.?[a-z0-9_+\-])*@[a-z0-9\-]+(\.[a-z0-9\-]+)+$/;
+
+function cleanEmail(raw, fixTypos){
+  let s = String(raw == null ? "" : raw).trim().toLowerCase().replace(/\s+/g,"").replace(/^[.,;:]+|[.,;:]+$/g,"");
+  s = s.replace(/^mailto:/,"");
+  let status = "ok", note = "";
+  if (!s) return {value:"", status:"flag", note:"empty email"};
+  if (fixTypos){
+    const at = s.lastIndexOf("@");
+    if (at > 0){
+      const dom = s.slice(at+1);
+      if (TYPOS[dom]){ s = s.slice(0,at+1) + TYPOS[dom]; status = "fixed"; note = "domain typo repaired"; }
+    }
+  }
+  if (!EMAIL_RE.test(s)) return {value:s, status:"flag", note:"invalid email format"};
+  if (s !== String(raw).trim() && status === "ok"){ status = "fixed"; note = "email normalized"; }
+  return {value:s, status, note};
+}
+
+/* longest-prefix match, 3 -> 2 -> 1 digits, with length cross-check */
+function matchCC(digits){
+  for (let L = 3; L >= 1; L--){
+    const p = digits.slice(0, L);
+    if (CC[p] && lenOK(p, digits.length - L)) return {cc:p, num:digits.slice(L), exact:true};
+  }
+  for (let L = 3; L >= 1; L--){          /* fallback: known code, odd length */
+    const p = digits.slice(0, L);
+    if (CC[p]) return {cc:p, num:digits.slice(L), exact:false};
+  }
+  return null;
+}
+
+function cleanPhone(raw, defCc){
+  const original = deSci(raw);
+  if (!original) return {original:"", cc:"", num:"", country:"", status:"flag", note:"empty phone"};
+  const hadPlus = /^\s*\+/.test(original);
+  let digits = original.replace(/\D/g,"");
+  let intl = hadPlus;
+  if (!intl && digits.startsWith("00")){ digits = digits.slice(2); intl = true; }
+  if (!digits) return {original, cc:"", num:"", country:"", status:"flag", note:"no digits found"};
+
+  if (intl){
+    const m0 = matchCC(digits);
+    if (m0 && m0.exact) return {original, cc:"+"+m0.cc, num:m0.num, country:CC[m0.cc], status:"ok", note:""};
+    if (m0) return {original, cc:"+"+m0.cc, num:m0.num, country:CC[m0.cc], status:"fixed", note:"unusual length for +"+m0.cc+" - verify"};
+    return {original, cc:"", num:digits, country:"", status:"flag", note:"unknown country code"};
+  }
+
+  /* RULE 1 - separator: the value starts with a 1-3 digit token that is a known
+     country code ("971 5833567", "98-95108120"). The writer separated the code
+     themselves; that formatting outranks every heuristic, including the default. */
+  const tok = original.trim().match(/^\(?(\d{1,3})[\s\-\.\/\)]/);
+  if (tok && CC[tok[1]] && digits.length > tok[1].length){
+    const cc = tok[1], rest = digits.slice(cc.length);
+    const fit = lenOK(cc, rest.length);
+    return {original, cc:"+"+cc, num:rest, country:CC[cc], status: fit ? "ok" : "fixed",
+            note: fit ? "code split at separator" : "code split at separator - unusual length for +"+cc+", verify"};
+  }
+
+  /* RULE 2 - unseparated: first 1-3 digits are a known code AND the remainder is a
+     valid national length for that country. Longest code wins; restricted to
+     countries with known lengths so a generic range can never cause a false split. */
+  for (let L = 3; L >= 1; L--){
+    const p = digits.slice(0, L);
+    if (CC[p] && NLEN[p]){
+      const rest = digits.slice(L);
+      if (rest.length >= NLEN[p][0] && rest.length <= NLEN[p][1]){
+        /* the whole string may ALSO be a valid default-country number - say so */
+        const rD = defCc ? (NLEN[defCc] || GEN) : null;
+        const alsoDef = defCc && p !== defCc && digits.length >= rD[0] && digits.length <= rD[1] && (defCc !== "91" || /^[6-9]/.test(digits));
+        return {original, cc:"+"+p, num:rest, country:CC[p], status:"ok", note:"code inferred from prefix" + (alsoDef ? " (also fits +"+defCc+" as a full number - verify if needed)" : "")};
+      }
+    }
+  }
+  const m = matchCC(digits);
+
+  /* RULE 3 - default country, only for a genuinely valid national number:
+     right length, and for India also a valid mobile first digit (6-9) */
+  if (defCc){
+    const r = NLEN[defCc] || GEN;
+    let d = digits;
+    if (d.length > r[1] && d[0] === "0") d = d.replace(/^0+/,"");
+    const firstDigitOK = defCc !== "91" || /^[6-9]/.test(d);
+    if (firstDigitOK && d.length >= r[0] && d.length <= r[1])
+      return {original, cc:"+"+defCc, num:d, country:CC[defCc], status: d===digits ? "ok":"fixed", note: d===digits ? "default country applied" : "trunk zero removed"};
+    if (d.startsWith(defCc) && lenOK(defCc, d.length - defCc.length))
+      return {original, cc:"+"+defCc, num:d.slice(defCc.length), country:CC[defCc], status:"fixed", note:"embedded country code detected"};
+  }
+
+  /* RULE 4 - last resort before flagging: split on the longest known code prefix
+     present in the data, as long as a plausible number remains */
+  if (m && digits.length - m.cc.length >= 5)
+    return {original, cc:"+"+m.cc, num:m.num, country:CC[m.cc], status:"fixed", note:"code split by prefix - verify"};
+
+  return {original, cc:"", num:digits, country:"", status:"flag", note:"length doesn't fit any country - review"};
+}
+
+/* ================= app state & UI ================= */
+let headers = [], rows = [], out = [];
+const $ = id => document.getElementById(id);
+
+function setStage(i, count){
+  const st = document.querySelectorAll(".stage")[i];
+  st.classList.add("lit");
+  st.querySelector(".scount").textContent = count.toLocaleString();
+}
+function resetStages(){ document.querySelectorAll(".stage").forEach(s=>{s.classList.remove("lit");s.querySelector(".scount").textContent="—";}); }
+
+function loadGrid(grid, name){
+  grid = grid.filter(r => r && r.some(c => String(c==null?"":c).trim() !== ""));
+  if (grid.length < 2){ alert("Need a header row plus at least one data row."); return; }
+  headers = grid[0].map((h,i)=> String(h==null?"":h).trim() || ("Column "+(i+1)));
+  rows = grid.slice(1);
+  const eSel = $("emailCol"), pSel = $("phoneCol");
+  eSel.innerHTML = pSel.innerHTML = "";
+  headers.forEach((h,i)=>{ eSel.add(new Option(h,i)); pSel.add(new Option(h,i)); });
+  const eGuess = headers.findIndex(h=>/mail/i.test(h));
+  const pGuess = headers.findIndex(h=>/phone|mobile|contact|whats|number|ph\b/i.test(h));
+  eSel.value = eGuess >= 0 ? eGuess : 0;
+  pSel.value = pGuess >= 0 ? pGuess : Math.min(1, headers.length-1);
+  $("filetag").textContent = "✓ " + (name || "pasted data") + " — " + rows.length.toLocaleString() + " rows, " + headers.length + " columns";
+  $("run").disabled = false;
+  resetStages(); setStage(0, rows.length);
+  $("results").style.display = "none";
+}
+
+function parseFile(file){
+  const rd = new FileReader();
+  rd.onload = e => {
+    try{
+      const wb = XLSX.read(e.target.result, {type:"array"});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      loadGrid(XLSX.utils.sheet_to_json(ws, {header:1, raw:true, defval:""}), file.name);
+    }catch(err){ alert("Could not read that file: " + err.message); }
+  };
+  rd.readAsArrayBuffer(file);
+}
+
+const drop = $("drop");
+drop.addEventListener("click", ()=> $("file").click());
+drop.addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" "){e.preventDefault();$("file").click();} });
+$("file").addEventListener("change", e=>{ if(e.target.files[0]) parseFile(e.target.files[0]); });
+["dragover","dragenter"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("over");}));
+["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("over");}));
+drop.addEventListener("drop", e=>{ if(e.dataTransfer.files[0]) parseFile(e.dataTransfer.files[0]); });
+let pasteTimer;
+$("paste").addEventListener("input", e=>{
+  clearTimeout(pasteTimer);
+  pasteTimer = setTimeout(()=>{
+    const t = e.target.value.trim(); if(!t) return;
+    try{
+      const wb = XLSX.read(t, {type:"string"});
+      loadGrid(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, raw:true, defval:""}), null);
+    }catch(err){ /* wait for more input */ }
+  }, 400);
+});
+
+$("run").addEventListener("click", ()=>{
+  const ei = +$("emailCol").value, pi = +$("phoneCol").value;
+  const defCc = $("defcc").value, fixTypos = $("fixTypos").checked, dedup = $("dedup").checked;
+  resetStages(); setStage(0, rows.length);
+  out = [];
+  let okEmail = 0, phCount = 0, matched = 0, fixed = 0, flagged = 0;
+  const seen = new Set();
+  for (const r of rows){
+    const em = cleanEmail(r[ei], fixTypos);
+    const ph = cleanPhone(r[pi], defCc);
+    if (dedup){
+      const key = (em.value || "·") + "|" + (ph.cc + ph.num || "·");
+      if ((em.value || ph.num) && seen.has(key)) continue;
+      seen.add(key);
+    }
+    if (em.status !== "flag") okEmail++;
+    if (ph.num) phCount++;
+    if (ph.cc) matched++;
+    const worst = (em.status==="flag"||ph.status==="flag") ? "flag" : (em.status==="fixed"||ph.status==="fixed") ? "fixed" : "ok";
+    if (worst==="fixed") fixed++;
+    if (worst==="flag") flagged++;
+    out.push({email:em.value, emailNote:em.note, phone:ph.original, cc:ph.cc, num:ph.num, country:ph.country, phoneNote:ph.note, status:worst});
+  }
+  const delays = [120,240,360,480];
+  setTimeout(()=>setStage(1, okEmail), delays[0]);
+  setTimeout(()=>setStage(2, phCount), delays[1]);
+  setTimeout(()=>setStage(3, matched), delays[2]);
+  setTimeout(()=>{ setStage(4, out.length); render(matched, fixed, flagged); }, delays[3]);
+});
+
+function render(matched, fixed, flagged){
+  $("stTotal").textContent = out.length.toLocaleString();
+  $("stMatched").textContent = matched.toLocaleString();
+  $("stFixed").textContent = fixed.toLocaleString();
+  $("stFlag").textContent = flagged.toLocaleString();
+  const tb = $("tbl").querySelector("tbody");
+  tb.innerHTML = "";
+  const LIMIT = 200;
+  out.slice(0, LIMIT).forEach(r=>{
+    const tr = document.createElement("tr");
+    const note = [r.emailNote, r.phoneNote].filter(Boolean).join(" · ");
+    tr.innerHTML =
+      "<td>"+esc(r.email||"—")+"</td><td class='dim'>"+esc(r.phone||"—")+"</td>"+
+      "<td>"+esc(r.cc||"—")+"</td><td>"+esc(r.num||"—")+"</td><td class='dim'>"+ (r.country||"—") +"</td>"+
+      "<td><span class='chip "+r.status+"'>"+r.status+"</span>"+(note?" <span class='dim' style='font-size:11px'>"+esc(note)+"</span>":"")+"</td>";
+    tb.appendChild(tr);
+  });
+  $("tfoot").textContent = out.length > LIMIT ? "Showing first "+LIMIT+" of "+out.length.toLocaleString()+" rows — the download contains everything." : out.length.toLocaleString()+" rows shown.";
+  $("results").style.display = "block";
+  $("results").scrollIntoView({behavior:"smooth", block:"start"});
+}
+function esc(s){ return String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+function exportRows(){
+  return out.map(r=>({ "Email": r.email, "Phone (original)": r.phone, "Country Code": r.cc, "Number Only": r.num, "Country": r.country, "Status": r.status, "Notes": [r.emailNote, r.phoneNote].filter(Boolean).join("; ") }));
+}
+$("dlx").addEventListener("click", ()=>{
+  const ws = XLSX.utils.json_to_sheet(exportRows());               /* string values -> text cells; Excel can't mangle them */
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Cleaned");
+  XLSX.writeFile(wb, "switchboard_cleaned.xlsx");
+});
+$("dlc").addEventListener("click", ()=>{
+  const ws = XLSX.utils.json_to_sheet(exportRows());
+  const csv = XLSX.utils.sheet_to_csv(ws);
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob(["\uFEFF"+csv], {type:"text/csv;charset=utf-8"}));
+  a.download = "switchboard_cleaned.csv";
+  a.click();
+});
+</script>
+</body>
+</html>
